@@ -21,7 +21,6 @@ This project provides a comprehensive benchmark of dot product implementations i
 ## 🖥️ Architectures Tested
 
 - x86_64 (Intel/AMD 64-bit)
-- arm64
 
 ## 📈 Performance Visualization
 
@@ -29,6 +28,3 @@ This project provides a comprehensive benchmark of dot product implementations i
 
 ![x86_64 Benchmark](assets/x86_64-unknown-linux-gnu_violins.svg)
 
-### ARM64 Benchmark
-
-![ARM64 Benchmark](assets/aarch64-unknown-linux-gnu_violins.svg)
