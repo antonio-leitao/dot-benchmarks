@@ -30,17 +30,35 @@ jobs:
 
       - name: Run Benchmarks
         run: |
-          # Create assets directory if it doesn't exist
+          # Ensure assets directory exists
           mkdir -p assets
 
           # Run benchmarks for the specific target
           cargo bench --all-features --target ${{ matrix.arch }}
 
+          # Debug: List contents of criterion directory
+          find target/criterion -type f
+
           # Find and copy the violin plot, with architecture-specific naming
           find target/criterion -name "violin.svg" -exec cp {} "assets/${{ matrix.arch }}_violins.svg" \;
 
-      - name: Upload Violin Plot
+          # Debug: List contents of assets directory
+          ls -l assets
+
+      - name: Upload Benchmark Assets
         uses: actions/upload-artifact@v3
         with:
           name: benchmark-plots-${{ matrix.arch }}
-          path: assets/${{ matrix.arch }}_violins.svg
+          path: assets/
+
+      - name: Commit SVG Files
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          # Check if there are any changes
+          if [[ -n $(git status -s) ]]; then
+            git add assets/
+            git commit -m "Update benchmark SVG for ${{ matrix.arch }}"
+            git push
+          fi
