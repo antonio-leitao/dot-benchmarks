@@ -7,7 +7,6 @@ edition = "2021"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
-faer = { version = "0.21.2", features = ["rand"] }
 nalgebra = { version = "0.33.2", features = ["rand"] }
 rand = "0.8.5"
 
