@@ -8,43 +8,53 @@ jobs:
   benchmark:
     strategy:
       matrix:
-        arch:
-          - x86_64-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
         include:
-          - arch: x86_64-unknown-linux-gnu
-            runner: ubuntu-latest
-            blas: libopenblas-dev
-          - arch: aarch64-unknown-linux-gnu
-            runner: ubuntu-latest-arm64
-            blas: libopenblas-dev
-    runs-on: ${{ matrix.runner }}
+          - arch: aarch64
+            distro: ubuntu22.04
+            target: aarch64-unknown-linux-gnu
+          - arch: x86_64
+            distro: ubuntu22.04
+            target: x86_64-unknown-linux-gnu
+
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ${{ matrix.blas }} liblapack-dev
-
-      - name: Install Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Run Benchmarks on ${{ matrix.arch }}
+        uses: uraimo/run-on-arch-action@v2
         with:
-          toolchain: stable
-          target: ${{ matrix.arch }}
+          arch: ${{ matrix.arch }}
+          distro: ${{ matrix.distro }}
+          githubToken: ${{ github.token }}
 
-      - name: Run Benchmarks
-        run: |
-          cargo bench --all-features --target ${{ matrix.arch }}
+          # Setup steps
+          setup: |
+            mkdir -p "${PWD}/assets"
 
-          # Create assets directory if it doesn't exist
-          mkdir -p assets
+          # Install dependencies
+          install: |
+            apt-get update
+            apt-get install -y curl build-essential libopenblas-dev liblapack-dev
 
-          # Find and copy the violin plot, with architecture-specific naming
-          find target/criterion -name "violin.svg" -exec cp {} "assets/${{ matrix.arch }}_violins.svg" \;
+          # Install Rust
+          run: |
+            curl https://sh.rustup.rs -sSf | sh -s -- -y
+            source "$HOME/.cargo/env"
+            rustup default stable
+            rustup target add ${{ matrix.target }}
+
+            # Clone the repository
+            git clone ${{ github.server_url }}/${{ github.repository }} repo
+            cd repo
+
+            # Run benchmarks
+            cargo bench --all-features --target ${{ matrix.target }}
+
+            # Find and copy violin plot
+            find target/criterion -name "violin.svg" -exec cp {} "/assets/${{ matrix.target }}_violins.svg" \;
 
       - name: Upload Violin Plot
         uses: actions/upload-artifact@v3
         with:
-          name: benchmark-plots-${{ matrix.arch }}
-          path: assets/${{ matrix.arch }}_violins.svg
+          name: benchmark-plots-${{ matrix.target }}
+          path: assets/${{ matrix.target }}_violins.svg
