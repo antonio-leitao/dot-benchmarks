@@ -1,0 +1,17 @@
+[package]
+name = "dot_benchmark"
+version = "0.1.0"
+edition = "2021"
+
+[dev-dependencies]
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+nalgebra = { version = "0.32", features = ["matrixcompare", "rand"] }
+nalgebra-lapack = { version = "0.32", features = ["openblas"] }
+faer = { version = "0.15", features = ["rand"] }
+rand = "0.8"
+
+[[bench]]
+name = "dot_product"
+harness = false

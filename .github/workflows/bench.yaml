@@ -1,0 +1,85 @@
+name: Architecture Benchmark
+
+on: [push, pull_request]
+
+env:
+  RUSTFLAGS: -C target-cpu=native
+  NALGEBRA_LAPACK_BACKEND: openblas # Force OpenBLAS for nalgebra
+
+jobs:
+  benchmark:
+    strategy:
+      matrix:
+        arch:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+        include:
+          - arch: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+            blas: libopenblas-dev
+          - arch: aarch64-unknown-linux-gnu
+            runner: ubuntu-latest-arm64
+            blas: libopenblas-dev
+
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.blas }} liblapack-dev
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.arch }}
+
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run Benchmarks
+        run: |
+          cargo bench --all-features --target ${{ matrix.arch }}
+          mkdir -p results/${{ matrix.arch }}
+          cp target/criterion/**/*.csv results/${{ matrix.arch }}/
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: results-${{ matrix.arch }}
+          path: results/${{ matrix.arch }}
+
+  report:
+    needs: [benchmark]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Generate Report
+        run: |
+          echo "# Architecture Benchmark Results" > report.md
+          echo "## Performance Comparison (ns/iter)" >> report.md
+          echo "| Architecture | Implementation | Mean Time |" >> report.md
+          echo "|--------------|----------------|-----------|" >> report.md
+
+          for arch_dir in artifacts/*; do
+            arch=$(basename $arch_dir | sed 's/results-//')
+            for csv in $arch_dir/*.csv; do
+              impl=$(basename $csv .csv)
+              mean_time=$(awk -F',' 'NR==2 {print $2}' $csv)
+              echo "| $arch | $impl | $mean_time |" >> report.md
+            done
+          done
+
+          cat report.md >> $GITHUB_STEP_SUMMARY
