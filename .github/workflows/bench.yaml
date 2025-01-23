@@ -39,7 +39,7 @@ jobs:
           cargo bench --all-features --target ${{ matrix.arch }}
 
           # Copy both f32 and f64 plots with architecture prefix
-          find target/criterion/f64 target/criterion/f32 -name "violin.svg" -exec sh -c '
+          find target/criterion/f64/report target/criterion/f32/report -name "violin.svg" -exec sh -c '
             for svg_file do
               dir_name=$(dirname "$svg_file")
               type_name=${dir_name##*/}
