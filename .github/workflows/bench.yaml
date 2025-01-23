@@ -1,60 +1,82 @@
-name: Architecture Benchmark
-on: [push, pull_request]
-env:
-  RUSTFLAGS: -C target-cpu=native
-  NALGEBRA_LAPACK_BACKEND: openblas
+name: Cross-Architecture Benchmarks
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
 
 jobs:
   benchmark:
-    strategy:
-      matrix:
-        include:
-          - arch: aarch64
-            distro: ubuntu22.04
-            target: aarch64-unknown-linux-gnu
-          - arch: x86_64
-            distro: ubuntu22.04
-            target: x86_64-unknown-linux-gnu
-
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Run Benchmarks on ${{ matrix.arch }}
-        uses: uraimo/run-on-arch-action@v2
-        with:
-          arch: ${{ matrix.arch }}
-          distro: ${{ matrix.distro }}
-          githubToken: ${{ github.token }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-          # Setup steps
-          setup: |
-            mkdir -p "${PWD}/assets"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create Dockerfile for Benchmarking
+        run: |
+          cat > Dockerfile.benchmark <<EOF
+          FROM rust:latest
 
           # Install dependencies
-          install: |
-            apt-get update
-            apt-get install -y curl build-essential libopenblas-dev liblapack-dev
+          RUN apt-get update && apt-get install -y \
+              libopenblas-dev \
+              liblapack-dev
 
-          # Install Rust
-          run: |
-            curl https://sh.rustup.rs -sSf | sh -s -- -y
-            source "$HOME/.cargo/env"
-            rustup default stable
-            rustup target add ${{ matrix.target }}
+          # Set working directory
+          WORKDIR /benchmark
 
-            # Clone the repository
-            git clone ${{ github.server_url }}/${{ github.repository }} repo
-            cd repo
+          # Copy project files
+          COPY . .
 
-            # Run benchmarks
-            cargo bench --all-features --target ${{ matrix.target }}
+          # Install Rust targets
+          RUN rustup target add x86_64-unknown-linux-gnu
+          RUN rustup target add aarch64-unknown-linux-gnu
 
-            # Find and copy violin plot
-            find target/criterion -name "violin.svg" -exec cp {} "/assets/${{ matrix.target }}_violins.svg" \;
+          # Run benchmarks and generate plots
+          CMD ["sh", "-c", "cargo bench --all-features --target x86_64-unknown-linux-gnu && cargo bench --all-features --target aarch64-unknown-linux-gnu"]
+          EOF
 
-      - name: Upload Violin Plot
-        uses: actions/upload-artifact@v3
-        with:
-          name: benchmark-plots-${{ matrix.target }}
-          path: assets/${{ matrix.target }}_violins.svg
+      - name: Run Benchmarks
+        run: |
+          # Create assets directory
+          mkdir -p assets
+
+          # Build and run benchmarks for each architecture
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            -f Dockerfile.benchmark \
+            -t benchmark-runner \
+            --output type=local,dest=./benchmark-output \
+            .
+
+      - name: Process Benchmark Results
+        run: |
+          # Copy violin plots from benchmark outputs
+          find benchmark-output -name "violin.svg" -exec cp {} assets/ \;
+
+          # Rename plots to be architecture-specific
+          mv assets/violin.svg assets/x86_64_violins.svg
+          mv assets/violin.svg assets/aarch64_violins.svg
+
+      - name: Update README
+        run: |
+          # Basic script to update README with new benchmark plots
+          sed -i 's|!\[x86_64 Benchmark\](.*)|![x86_64 Benchmark](assets/x86_64_violins.svg)|' README.md
+          sed -i 's|!\[aarch64 Benchmark\](.*)|![aarch64 Benchmark](assets/aarch64_violins.svg)|' README.md
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add assets/x86_64_violins.svg assets/aarch64_violins.svg README.md
+          git commit -m "Update benchmark plots" || echo "No changes to commit"
+          git push
