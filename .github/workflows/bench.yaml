@@ -5,7 +5,7 @@ env:
   NALGEBRA_LAPACK_BACKEND: openblas
 
 permissions:
-  contents: write # This gives the workflow permission to push changes
+  contents: write
 
 jobs:
   benchmark:
@@ -20,7 +20,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Ensure we have full git history and can push back
           fetch-depth: 0
 
       - name: Install Dependencies
@@ -36,14 +35,17 @@ jobs:
 
       - name: Run Benchmarks
         run: |
-          # Ensure assets directory exists
           mkdir -p assets
-
-          # Run benchmarks for the specific target
           cargo bench --all-features --target ${{ matrix.arch }}
 
-          # Find and copy the violin plot, with architecture-specific naming
-          find target/criterion -name "violin.svg" -exec cp {} "assets/${{ matrix.arch }}_violins.svg" \;
+          # Copy both f32 and f64 plots with architecture prefix
+          find target/criterion/f64 target/criterion/f32 -name "violin.svg" -exec sh -c '
+            for svg_file do
+              dir_name=$(dirname "$svg_file")
+              type_name=${dir_name##*/}
+              cp "$svg_file" "assets/${{ matrix.arch }}_${type_name}.svg"
+            done
+          ' sh {} +
 
       - name: Commit and Push SVG
         env:
@@ -52,9 +54,8 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
 
-          # Check if there are any changes in the assets directory
           if [[ -n $(git status assets/ -s) ]]; then
             git add assets/
-            git commit -m "Update benchmark SVG for ${{ matrix.arch }}"
+            git commit -m "Update benchmark SVGs for ${{ matrix.arch }} (f32/f64)"
             git push
           fi

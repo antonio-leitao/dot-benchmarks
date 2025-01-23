@@ -4,55 +4,93 @@ use nalgebra::DVector;
 use rand::Rng;
 
 mod implementations {
-
     use super::*;
 
-    // Native Rust implementation
-    pub fn native_dot(a: &[f64], b: &[f64]) -> f64 {
+    // f64 implementations
+    pub fn native_dot_f64(a: &[f64], b: &[f64]) -> f64 {
         a.iter().zip(b).map(|(x, y)| x * y).sum()
     }
 
-    // nalgebra with OpenBLAS
-    pub fn nalgebra_dot(a: &DVector<f64>, b: &DVector<f64>) -> f64 {
-        a.dot(b) // Will use BLAS via nalgebra-lapack
+    pub fn nalgebra_dot_f64(a: &DVector<f64>, b: &DVector<f64>) -> f64 {
+        a.dot(b)
     }
-    // nalgebra with OpenBLAS
-    pub fn dotzilla_dot(a: &[f64], b: &[f64]) -> f64 {
+
+    pub fn dotzilla_dot_f64(a: &[f64], b: &[f64]) -> f64 {
+        dotzilla::dot_product(a, b)
+    }
+
+    // f32 implementations
+    pub fn native_dot_f32(a: &[f32], b: &[f32]) -> f32 {
+        a.iter().zip(b).map(|(x, y)| x * y).sum()
+    }
+
+    pub fn nalgebra_dot_f32(a: &DVector<f32>, b: &DVector<f32>) -> f32 {
+        a.dot(b)
+    }
+
+    pub fn dotzilla_dot_f32(a: &[f32], b: &[f32]) -> f32 {
         dotzilla::dot_product(a, b)
     }
 }
 
-fn bench_dot_product(c: &mut Criterion) {
+fn bench_dot_products(c: &mut Criterion) {
     let mut rng = rand::thread_rng();
-    let size = 1_000_000; // Large enough to measure meaningful differences
+    let size = 1_000_000;
 
-    // Generate random vectors once
-    let native_a: Vec<f64> = (0..size).map(|_| rng.gen()).collect();
-    let native_b: Vec<f64> = (0..size).map(|_| rng.gen()).collect();
+    // Benchmark f64 implementations
+    {
+        let a_f64: Vec<f64> = (0..size).map(|_| rng.gen()).collect();
+        let b_f64: Vec<f64> = (0..size).map(|_| rng.gen()).collect();
+        let a_nalg_f64 = DVector::from_vec(a_f64.clone());
+        let b_nalg_f64 = DVector::from_vec(b_f64.clone());
 
-    let nalgebra_a = DVector::from_vec(native_a.clone());
-    let nalgebra_b = DVector::from_vec(native_b.clone());
+        let mut group = c.benchmark_group("f64");
+        group.sample_size(1000);
+        group.confidence_level(0.99);
+        group.measurement_time(std::time::Duration::from_secs(10));
 
-    let mut group = c.benchmark_group("Dot Product");
-    group.sample_size(1000);
-    group.confidence_level(0.99);
-    group.measurement_time(std::time::Duration::from_secs(10));
+        group.bench_function("native Rust", |b| {
+            b.iter(|| implementations::native_dot_f64(black_box(&a_f64), black_box(&b_f64)))
+        });
 
-    // Benchmark each implementation
-    group.bench_function("Native Rust", |b| {
-        b.iter(|| implementations::native_dot(black_box(&native_a), black_box(&native_b)))
-    });
+        group.bench_function("nalgebra", |b| {
+            b.iter(|| {
+                implementations::nalgebra_dot_f64(black_box(&a_nalg_f64), black_box(&b_nalg_f64))
+            })
+        });
 
-    group.bench_function("nalgebra (OpenBLAS)", |b| {
-        b.iter(|| implementations::nalgebra_dot(black_box(&nalgebra_a), black_box(&nalgebra_b)))
-    });
+        group.bench_function("dotzilla", |b| {
+            b.iter(|| implementations::dotzilla_dot_f64(black_box(&a_f64), black_box(&b_f64)))
+        });
+    }
 
-    // Benchmark each implementation
-    group.bench_function("dotzilla", |b| {
-        b.iter(|| implementations::dotzilla_dot(black_box(&native_a), black_box(&native_b)))
-    });
-    group.finish();
+    // Benchmark f32 implementations
+    {
+        let a_f32: Vec<f32> = (0..size).map(|_| rng.gen()).collect();
+        let b_f32: Vec<f32> = (0..size).map(|_| rng.gen()).collect();
+        let a_nalg_f32 = DVector::from_vec(a_f32.clone());
+        let b_nalg_f32 = DVector::from_vec(b_f32.clone());
+
+        let mut group = c.benchmark_group("f32");
+        group.sample_size(1000);
+        group.confidence_level(0.99);
+        group.measurement_time(std::time::Duration::from_secs(10));
+
+        group.bench_function("native", |b| {
+            b.iter(|| implementations::native_dot_f32(black_box(&a_f32), black_box(&b_f32)))
+        });
+
+        group.bench_function("nalgebra", |b| {
+            b.iter(|| {
+                implementations::nalgebra_dot_f32(black_box(&a_nalg_f32), black_box(&b_nalg_f32))
+            })
+        });
+
+        group.bench_function("dotzilla", |b| {
+            b.iter(|| implementations::dotzilla_dot_f32(black_box(&a_f32), black_box(&b_f32)))
+        });
+    }
 }
 
-criterion_group!(benches, bench_dot_product);
+criterion_group!(benches, bench_dot_products);
 criterion_main!(benches);

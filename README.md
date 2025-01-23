@@ -1,5 +1,13 @@
 # 🚀 Rust Dot Product Performance Benchmark
 
+### f64
+
+![x86_64 Benchmark](assets/x86_64-unknown-linux-gnu_f64.svg)
+
+### f32
+
+![x86_64 Benchmark](assets/x86_64-unknown-linux-gnu_f32.svg)
+
 ## 📊 Overview
 
 This project provides a comprehensive benchmark of dot product implementations in Rust, comparing different computational approaches across multiple architectures.
@@ -10,6 +18,7 @@ This project provides a comprehensive benchmark of dot product implementations i
 
 - **Native Rust**: Pure Rust implementation using iterator methods
 - **Nalgebra (OpenBLAS)**: Optimized linear algebra implementation leveraging BLAS
+- **Dotzilla**: Rust crate for dot product
 
 ### Benchmark Parameters
 
@@ -21,10 +30,4 @@ This project provides a comprehensive benchmark of dot product implementations i
 ## 🖥️ Architectures Tested
 
 - x86_64 (Intel/AMD 64-bit)
-
-## 📈 Performance Visualization
-
-### x86_64 Benchmark
-
-![x86_64 Benchmark](assets/x86_64-unknown-linux-gnu_violins.svg)
-
+- arm64 (upcoming)
