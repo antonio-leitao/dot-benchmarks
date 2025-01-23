@@ -1,4 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use dotzilla;
 use nalgebra::DVector;
 use rand::Rng;
 
@@ -14,6 +15,10 @@ mod implementations {
     // nalgebra with OpenBLAS
     pub fn nalgebra_dot(a: &DVector<f64>, b: &DVector<f64>) -> f64 {
         a.dot(b) // Will use BLAS via nalgebra-lapack
+    }
+    // nalgebra with OpenBLAS
+    pub fn dotzilla_dot(a: &[f64], b: &[f64]) -> f64 {
+        dotzilla::dot_product(a, b)
     }
 }
 
@@ -42,6 +47,10 @@ fn bench_dot_product(c: &mut Criterion) {
         b.iter(|| implementations::nalgebra_dot(black_box(&nalgebra_a), black_box(&nalgebra_b)))
     });
 
+    // Benchmark each implementation
+    group.bench_function("dotzilla", |b| {
+        b.iter(|| implementations::dotzilla_dot(black_box(&native_a), black_box(&native_b)))
+    });
     group.finish();
 }
 

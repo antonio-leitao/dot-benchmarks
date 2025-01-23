@@ -192,9 +192,16 @@ name = "dot_benchmark"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "dotzilla",
  "nalgebra",
  "rand",
 ]
+
+[[package]]
+name = "dotzilla"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe60fea61a0dddb01006350c679291daae1f85c263131a28fd91af2ed7c62d7d"
 
 [[package]]
 name = "either"
