@@ -17,8 +17,8 @@ This project provides a comprehensive benchmark of dot product implementations i
 ### Implementations
 
 - **Native Rust**: Pure Rust implementation using iterator methods
-- **Nalgebra (OpenBLAS)**: Optimized linear algebra implementation leveraging BLAS
-- **Dotzilla**: Rust crate for dot product
+- [**Nalgebra (OpenBLAS)**](https://nalgebra.org/): Optimized linear algebra implementation leveraging BLAS
+- [**Dotzilla**](https://github.com/antonio-leitao/dotzilla) Rust crate for dot product
 
 ### Benchmark Parameters
 
